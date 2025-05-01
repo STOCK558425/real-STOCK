@@ -1,25 +1,30 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
-import numpy as np
-import datetime
+import requests
 
 st.set_page_config(page_title="株式分析ツール", layout="wide")
 
 st.title("株式分析ツール")
 st.caption("株価チャート・財務指標・予測・ニュース・売買アドバイス統合版")
 
-ticker = st.text_input("ティッカーを入力（例: GRRR, PLTR, TSLA）", value="AAPL").upper()
+ticker = st.text_input("ティッカーを入力（例: MSFT, AAPL, TSLA）", value="MSFT").upper()
+api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
 
 if ticker:
     try:
-        stock = yf.Ticker(ticker)
-        df = stock.history(period="6mo")
-        if not df.empty and 'Close' in df:
-            st.subheader("株価チャート（6ヶ月）")
-            st.line_chart(df['Close'])
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=compact&apikey={api_key}"
+        response = requests.get(url)
+        data = response.json()
 
-            last_close = df['Close'].iloc[-1]
+        if "Time Series (Daily)" in data:
+            df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
+            df = df.astype(float)
+            df.sort_index(inplace=True)
+
+            st.subheader("株価チャート（過去100日）")
+            st.line_chart(df["4. close"])
+
+            last_close = df["4. close"].iloc[-1]
             forecast = last_close * 1.05
             st.metric("1ヶ月予測株価（簡易）", f"${forecast:.2f}", delta="5%")
 
@@ -39,7 +44,7 @@ if ticker:
             st.write("・陽線で陰線を包み込み、出来高増 → 上昇期待")
             st.write("・主要サポート: $17、レジスタンス: $22")
         else:
-            st.warning("株価データが取得できませんでした。ティッカーまたは接続を確認してください。")
+            st.warning("株価データが取得できませんでした。API制限の可能性があります。")
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
 else:
