@@ -9,13 +9,13 @@ st.set_page_config(page_title="株式分析ツール", layout="wide")
 st.title("株式分析ツール")
 st.caption("株価チャート・財務指標・予測・ニュース・売買アドバイス統合版")
 
-ticker = st.text_input("ティッカーを入力（例: GRRR, PLTR, TSLA）", value="GRRR")
+ticker = st.text_input("ティッカーを入力（例: GRRR, PLTR, TSLA）", value="GRRR").upper()
 
 if ticker:
     try:
         stock = yf.Ticker(ticker)
         df = stock.history(period="6mo")
-        if not df.empty:
+        if not df.empty and 'Close' in df:
             st.subheader("株価チャート（6ヶ月）")
             st.line_chart(df['Close'])
 
@@ -39,7 +39,7 @@ if ticker:
             st.write("・陽線で陰線を包み込み、出来高増 → 上昇期待")
             st.write("・主要サポート: $17、レジスタンス: $22")
         else:
-            st.warning("株価データが取得できませんでした。ティッカーを確認してください。")
+            st.warning("株価データが取得できませんでした。ティッカーまたは接続を確認してください。")
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
 else:
