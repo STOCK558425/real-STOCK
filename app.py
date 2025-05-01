@@ -9,7 +9,7 @@ st.set_page_config(page_title="株式分析ツール", layout="wide")
 st.title("株式分析ツール")
 st.caption("株価チャート・財務指標・予測・ニュース・売買アドバイス統合版")
 
-ticker = st.text_input("ティッカーを入力（例: GRRR, PLTR, TSLA）", value="GRRR").upper()
+ticker = st.text_input("ティッカーを入力（例: GRRR, PLTR, TSLA）", value="AAPL").upper()
 
 if ticker:
     try:
@@ -19,7 +19,7 @@ if ticker:
             st.subheader("株価チャート（6ヶ月）")
             st.line_chart(df['Close'])
 
-            last_close = df['Close'][-1]
+            last_close = df['Close'].iloc[-1]
             forecast = last_close * 1.05
             st.metric("1ヶ月予測株価（簡易）", f"${forecast:.2f}", delta="5%")
 
