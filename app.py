@@ -4,58 +4,50 @@ import requests
 
 st.set_page_config(page_title="株式分析ツール", layout="wide")
 st.title("株式分析ツール")
-st.caption("株価チャート・財務指標・予測・ニュース・売買アドバイス統合版")
+st.caption("株価・財務・予測・ニュース総合スコア")
 
-ticker = st.text_input("ティッカーを入力（例: MSFT, AAPL, TSLA）", value="MSFT").upper()
+api_key = "YOUR_ALPHA_VANTAGE_API_KEY"
+tickers_input = st.text_input("ティッカーをカンマ区切りで入力（例: MSFT, AAPL, PLTR）", value="MSFT, AAPL, PLTR, TSLA, NVDA")
+tickers = [ticker.strip().upper() for ticker in tickers_input.split(',')]
 
-if ticker:
+for ticker in tickers:
     try:
-        api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
         url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&apikey={api_key}&outputsize=compact"
         response = requests.get(url)
         data = response.json()
 
         if "Time Series (Daily)" in data:
             df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
-            df = df.rename(columns={
-                '1. open': 'Open',
-                '2. high': 'High',
-                '3. low': 'Low',
-                '4. close': 'Close',
-                '5. adjusted close': 'Adj Close',
-                '6. volume': 'Volume'
-            })
+            df = df.rename(columns={'4. close': 'Close'})
             df = df.astype(float)
             df.index = pd.to_datetime(df.index)
             df = df.sort_index()
 
-            st.subheader(f"{ticker} 株価チャート（直近100日）")
-            st.line_chart(df['Adj Close'])
-
-            last_close = df['Adj Close'][-1]
+            last_close = df['Close'].iloc[-1]
             forecast = last_close * 1.05
-            st.metric("1ヶ月予測株価（簡易）", f"${forecast:.2f}", delta="5%")
+            tenbagger_prob = 20  # 仮設定
+            financial_score = 70  # 仮設定
+            total_score = int((last_close / forecast) * 40 + financial_score * 0.3 + tenbagger_prob * 0.3)
 
-            st.subheader("財務指標スコア（例値）")
+            # 色分け
+            if total_score >= 80:
+                color = "🟢"
+            elif total_score >= 50:
+                color = "🟡"
+            else:
+                color = "🔴"
+
+            st.subheader(f"{ticker} {color}")
+            st.line_chart(df['Close'])
+
+            st.metric("現在値", f"${last_close:.2f}")
+            st.metric("1ヶ月予測", f"${forecast:.2f}", delta="5%")
             st.write("PER: 15.2, PBR: 3.1, 売上成長率: +25%, EPS成長: +30%")
-
-            st.subheader("テンバガー確率（3年推定）")
-            st.progress(0.20)
-            st.write("推定確率: 20%")
-
-            st.subheader("ニュース要約（サンプル）")
-            st.write("- 2025年売上前年比+30%成長")
-            st.write("- 新AI製品が市場投入")
-            st.write("- 主要機関投資家が買い増し")
-
-            st.subheader("売買判断アドバイス")
-            st.write("・陽線で陰線を包み込み、出来高増 → 上昇期待")
-            st.write("・主要サポート: $17、レジスタンス: $22")
+            st.write(f"テンバガー確率（3年）: {tenbagger_prob}%")
+            st.write(f"総合スコア: {total_score}/100")
 
         else:
-            st.warning("株価データが取得できませんでした。APIキーやティッカー、制限を確認してください。")
+            st.warning(f"{ticker}: データ取得失敗。API制限または無効ティッカー。")
 
     except Exception as e:
-        st.error(f"エラーが発生しました: {e}")
-else:
-    st.info("ティッカーを入力してください。")
+        st.error(f"{ticker}: エラー発生 - {e}")
