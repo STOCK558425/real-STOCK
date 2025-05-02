@@ -3,28 +3,36 @@ import pandas as pd
 import requests
 
 st.set_page_config(page_title="株式分析ツール", layout="wide")
-
 st.title("株式分析ツール")
 st.caption("株価チャート・財務指標・予測・ニュース・売買アドバイス統合版")
 
 ticker = st.text_input("ティッカーを入力（例: MSFT, AAPL, TSLA）", value="MSFT").upper()
-api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
 
 if ticker:
     try:
-        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=compact&apikey={api_key}"
+        api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&apikey={api_key}&outputsize=compact"
         response = requests.get(url)
         data = response.json()
 
         if "Time Series (Daily)" in data:
             df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
+            df = df.rename(columns={
+                '1. open': 'Open',
+                '2. high': 'High',
+                '3. low': 'Low',
+                '4. close': 'Close',
+                '5. adjusted close': 'Adj Close',
+                '6. volume': 'Volume'
+            })
             df = df.astype(float)
-            df.sort_index(inplace=True)
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
 
-            st.subheader("株価チャート（過去100日）")
-            st.line_chart(df["4. close"])
+            st.subheader(f"{ticker} 株価チャート（直近100日）")
+            st.line_chart(df['Adj Close'])
 
-            last_close = df["4. close"].iloc[-1]
+            last_close = df['Adj Close'][-1]
             forecast = last_close * 1.05
             st.metric("1ヶ月予測株価（簡易）", f"${forecast:.2f}", delta="5%")
 
@@ -43,8 +51,10 @@ if ticker:
             st.subheader("売買判断アドバイス")
             st.write("・陽線で陰線を包み込み、出来高増 → 上昇期待")
             st.write("・主要サポート: $17、レジスタンス: $22")
+
         else:
-            st.warning("株価データが取得できませんでした。API制限の可能性があります。")
+            st.warning("株価データが取得できませんでした。APIキーやティッカー、制限を確認してください。")
+
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
 else:
